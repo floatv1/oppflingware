@@ -1,0 +1,419 @@
+local code = math.random()
+getgenv().flingCode = code
+
+local sepOppScriptPro = {
+	services = {
+		players = game:GetService("Players"),
+		replicatedStorage = game:GetService("ReplicatedStorage"),
+		collectionService = game:GetService("CollectionService"),
+		userInputService = game:GetService("UserInputService"),
+		runService = game:GetService("RunService")
+	},
+
+	functions = {},
+	folders = {},
+	angularVelocities = {},
+
+	whitelist = {},
+
+	active = true,
+	speed = 1,
+	damper = 0
+}
+
+if game.CoreGui:FindFirstChild("trotman") then
+	game.CoreGui.trotman:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+local TextLabel = Instance.new("TextLabel")
+local TextLabel_2 = Instance.new("TextLabel")
+
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+TextLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+TextLabel.BackgroundTransparency = 0.500
+TextLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
+TextLabel.BorderSizePixel = 0
+TextLabel.Position = UDim2.new(0.890018463, 0, 0.885802507, 0)
+TextLabel.Size = UDim2.new(0.100000009, 0, 0.0382716171, 0)
+TextLabel.Font = Enum.Font.RobotoMono
+TextLabel.Text = "speed: "..math.floor(sepOppScriptPro.speed + 0.5)
+TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextLabel.TextSize = 40.000
+TextLabel.TextStrokeTransparency = 0.500
+TextLabel.Parent = ScreenGui
+
+ScreenGui.Name = "trotman"
+ScreenGui.Parent = game.CoreGui
+
+local player = sepOppScriptPro.services.players.LocalPlayer
+player:GetMouse().TargetFilter = workspace.Map
+
+local character = player.Character
+
+local realHighlight = Instance.new("Highlight")
+realHighlight.Parent = character
+
+realHighlight.FillColor = Color3.fromRGB(0, 0, 0)
+realHighlight.FillTransparency = 1
+
+realHighlight.OutlineColor = Color3.fromRGB(0, 255, 0)
+realHighlight.OutlineTransparency = 0
+
+realHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+realHighlight.Adornee = character
+
+task.spawn(function()
+	while true do
+		local hue = tick() % 5 / 5
+		local color = Color3.fromHSV(hue, 1, 1) 
+		realHighlight.OutlineColor = color
+		task.wait()
+	end
+end)
+
+local currentCamera = workspace.CurrentCamera
+currentCamera.CameraSubject = character["Right Leg"]
+
+local humanoidRootPart = character.HumanoidRootPart
+local torso = character.Torso
+local humanoid = character.Humanoid
+
+local ADONIS_FLIGHT = Instance.new("LocalScript")
+ADONIS_FLIGHT.Name = "ADONIS_FLIGHT"
+ADONIS_FLIGHT.Parent = humanoidRootPart
+
+for _, fs in pairs(workspace:GetDescendants()) do
+	if fs.Name == "FireScript" and fs.Parent.Name == "FirePart" then
+		fs.Parent:Destroy()
+	end
+end
+
+local RootJoint = humanoidRootPart.RootJoint:Clone()
+humanoidRootPart.RootJoint.Part0 = nil
+humanoidRootPart.RootJoint.Part1 = nil
+RootJoint.Parent = humanoidRootPart
+
+humanoidRootPart.Transparency = 0.5
+
+local humanoidRootPartCFrame = humanoidRootPart.CFrame
+local followCFrame = humanoidRootPartCFrame
+local camCFrame = nil
+local followPart = nil
+local flingactive = true
+local followParts = {
+	[1] = nil,
+	[2] = nil,
+	[3] = nil,
+	[4] = nil
+}
+
+local followedParts = 1
+
+local highlights = {} 
+
+sepOppScriptPro.folders.charStats = sepOppScriptPro.services.replicatedStorage:WaitForChild("CharStats")
+sepOppScriptPro.folders.events = sepOppScriptPro.services.replicatedStorage:WaitForChild("Events")
+
+charStat = sepOppScriptPro.folders.charStats:WaitForChild(character.Name)
+
+local __DFfDD = sepOppScriptPro.folders.events:WaitForChild("__DFfDD")
+
+sepOppScriptPro.functions.ragdollChar = function(Time)
+	Time = Time or 1
+	local ragdollTime = charStat.RagdollTime
+	ragdollTime.RagdollTime2.Value = ragdollTime.RagdollTime2.Value + Time
+	ragdollTime.RagdollSwitch2.Value = true
+	ragdollTime.RagdollSwitch.Value = true
+	ragdollTime.RagdollSwitch2.Code.Value = math.random()
+	sepOppScriptPro.services.players.LocalPlayer.Character.Humanoid.PlatformStand = true
+	coroutine.wrap(function()
+		task.wait(Time)
+		if ragdollTime.RagdollTime2.Value - Time <= 0 then
+			ragdollTime.RagdollSwitch2.Value = false
+			if ragdollTime.Value <= 0 and not ragdollTime.SRagdolled.Value then
+				sepOppScriptPro.services.players.LocalPlayer.Character.Humanoid.PlatformStand = false
+			end
+		end
+		ragdollTime.RagdollTime2.Value = ragdollTime.RagdollTime2.Value - Time
+		if ragdollTime.Value <= 0 and not ragdollTime.SRagdolled.Value then
+			ragdollTime.RagdollSwitch.Value = false
+		end
+	end)()
+
+	__DFfDD:FireServer("__--r", Vector3.new(), CFrame.new())
+
+	game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+end
+
+sepOppScriptPro.functions.getNearestChar = function(characters, character)
+	local nearest = nil
+	local distance = math.huge
+	for _, char in pairs(characters) do
+		if char ~= character and not char:FindFirstChildOfClass("ForceField") and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") and char:FindFirstChild("Humanoid") then
+			if char.Humanoid.Health > 0 and (char.HumanoidRootPart.Position - character["Right Leg"].Position).Magnitude < distance then
+				nearest = char
+				distance = (char.HumanoidRootPart.Position - character["Right Leg"].Position).Magnitude
+			end
+		end
+	end
+
+	return nearest
+end
+
+sepOppScriptPro.services.userInputService.InputBegan:connect(function(k, i)
+	if i then
+		return
+	end
+
+	if not (getgenv().flingCode == code and humanoid.Health > 0) then
+		return
+	end
+
+	if k.KeyCode == Enum.KeyCode.Two then
+		sepOppScriptPro.speed = math.clamp(sepOppScriptPro.speed + 0.25, 0.25, 25)
+		TextLabel.Text = "speed: "..math.floor(sepOppScriptPro.speed + 0.5)
+	elseif k.KeyCode == Enum.KeyCode.One then
+		sepOppScriptPro.speed = math.clamp(sepOppScriptPro.speed - 0.25, 0.25, 25)
+		TextLabel.Text = "speed: "..math.floor(sepOppScriptPro.speed + 0.5)
+	elseif k.KeyCode == Enum.KeyCode.M then
+		followCFrame = CFrame.new(-4486.63184, 164.434143, -310.538757)
+	elseif k.KeyCode == Enum.KeyCode.X then
+		followPart = nil
+
+		for i = 1, 4 do
+			if followParts[i] then
+				if followParts[i].Parent then
+					if followParts[i].Parent:FindFirstChildOfClass("Highlight") then
+						followParts[i].Parent:FindFirstChildOfClass("Highlight"):Destroy()
+					end
+				end
+			end
+
+			followParts[i] = nil
+		end
+
+		followedParts = 1
+
+		camCFrame = nil
+
+		currentCamera.CameraSubject = character["Right Leg"]
+
+		table.clear(highlights)
+	elseif k.UserInputType == Enum.UserInputType.MouseButton1 then
+		followPart = nil
+
+		currentCamera.CameraSubject = nil
+
+		local target = nil
+		if player:GetMouse().Target then
+			if player:GetMouse().Target:IsDescendantOf(workspace:WaitForChild("Characters")) then
+				local targetChar = player:GetMouse().Target:FindFirstAncestorOfClass("Model")
+				if targetChar and targetChar ~= character then
+					target = targetChar
+				end
+			end
+		end
+
+		if target then
+			local followChars = {}
+			followChars[followedParts] = target
+			for i = followedParts, 4 do
+				if followChars[i] then
+					if followChars[i]:FindFirstChild("Torso") then
+						followParts[i] = followChars[i].Torso
+
+						local highlight = Instance.new("Highlight")
+						highlight.Parent = followChars[i]
+
+						highlight.FillColor = Color3.fromRGB(0, 0, 255)
+						highlight.FillTransparency = 0.75
+
+						highlight.OutlineColor = Color3.fromRGB(0, 0, 255)
+						highlight.OutlineTransparency = 0
+
+						highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+						highlight.Adornee = followChars[i]
+
+						followedParts = followedParts + 1
+
+						table.insert(highlights, highlight)
+					end
+				end
+			end
+
+			camCFrame = currentCamera.CFrame
+		end
+	end
+end)
+
+task.spawn(function()
+	--[[
+	for _, limb in pairs(character:GetChildren()) do
+		if limb:IsA("BasePart") and limb.Name ~= "HumanoidRootPart" and limb.Name ~= "Head" and limb.Name ~= "Torso" then
+			local vel, movel = nil, 1
+			while getgenv().flingCode == code and humanoid.Health > 0 do
+				sepOppScriptPro.services.runService.Heartbeat:Wait()
+				vel = limb.Velocity
+				limb.Velocity = vel * 10000 + Vector3.new(10000, 10000, 10000)
+				sepOppScriptPro.services.runService.RenderStepped:Wait()
+				if character and character.Parent and limb and limb.Parent then
+					limb.Velocity = vel
+				end
+				sepOppScriptPro.services.runService.Stepped:Wait()
+				if character and character.Parent and limb and limb.Parent then
+					limb.Velocity = vel + Vector3.new(0, movel, 0)
+					movel = movel * -1
+				end
+			end
+		end
+	end
+	]]--
+end)
+
+local limbPositions = {
+	["Right Leg"] = Vector3.new(0.44, 0, 0.44),
+	["Left Leg"] = Vector3.new(0.44, 0, -0.44),
+	["Right Arm"] = Vector3.new(-0.44, 0, 0.44),
+	["Left Arm"] = Vector3.new(-0.44, 0, -0.44)
+}
+
+task.spawn(function()
+	while getgenv().flingCode == code and humanoid.Health > 0 do
+		if sepOppScriptPro.active then
+			humanoidRootPart.CFrame = humanoidRootPartCFrame 
+
+			humanoidRootPart.Velocity = Vector3.new(0, 1, 0) * -10000
+			torso.Velocity = Vector3.new(0, 1, 0) * -10000
+
+			if not camCFrame then
+				currentCamera.CameraType = Enum.CameraType.Custom
+			end
+
+			if not followParts[1] then
+				if character:FindFirstChild("Right Leg") then
+					currentCamera.CameraSubject = character["Right Leg"]
+				end
+			elseif followParts[1] and not followParts[2] then
+				if character:FindFirstChild("Left Leg") then
+					currentCamera.CameraSubject = character["Left Leg"]
+				end
+			elseif followParts[2] and not followParts[3] then
+				if character:FindFirstChild("Right Arm") then
+					currentCamera.CameraSubject = character["Right Arm"]
+				end
+			elseif followParts[3] and not followParts[4] then
+				if character:FindFirstChild("Left Arm") then
+					currentCamera.CameraSubject = character["Left Arm"]
+				end
+			elseif followParts[4] then
+				currentCamera.CameraType = Enum.CameraType.Scriptable
+				currentCamera.CFrame = camCFrame
+			end
+
+			sepOppScriptPro.functions.ragdollChar(10000)
+
+			if followPart then
+				local vel = Vector3.new()
+				if followPart.Parent then
+					if followPart.Parent:FindFirstChild("Humanoid") then
+						if sepOppScriptPro.damper > 0 and followPart.Parent.Humanoid.Health > 0 then
+							if followPart.Parent.Humanoid.MoveDirection.Unit.Magnitude < 10 then
+								vel = followPart.Parent.Humanoid.MoveDirection.Unit * sepOppScriptPro.damper
+							end
+						end
+					end
+				end
+
+				followCFrame = CFrame.new(followPart.Position + vel)
+			else
+				if sepOppScriptPro.services.userInputService:IsKeyDown(Enum.KeyCode.W) then
+					followCFrame = followCFrame + currentCamera.CFrame.LookVector * sepOppScriptPro.speed
+				end
+
+				if sepOppScriptPro.services.userInputService:IsKeyDown(Enum.KeyCode.A) then
+					followCFrame = followCFrame + -currentCamera.CFrame.RightVector * sepOppScriptPro.speed
+				end
+
+				if sepOppScriptPro.services.userInputService:IsKeyDown(Enum.KeyCode.S) then
+					followCFrame = followCFrame + -currentCamera.CFrame.LookVector * sepOppScriptPro.speed
+				end
+
+				if sepOppScriptPro.services.userInputService:IsKeyDown(Enum.KeyCode.D) then
+					followCFrame = followCFrame + currentCamera.CFrame.RightVector * sepOppScriptPro.speed
+				end
+
+				if sepOppScriptPro.services.userInputService:IsKeyDown(Enum.KeyCode.E) then
+					followCFrame = followCFrame + currentCamera.CFrame.UpVector * sepOppScriptPro.speed
+				end
+
+				if sepOppScriptPro.services.userInputService:IsKeyDown(Enum.KeyCode.Q) then
+					followCFrame = followCFrame + -currentCamera.CFrame.UpVector * sepOppScriptPro.speed
+				end
+			end
+
+			for _, limb in pairs(character:GetChildren()) do
+				if limb:IsA("BasePart") and limb.Name ~= "HumanoidRootPart" and limb.Name ~= "Torso" then
+					if limb.Name == "Head" then
+						limb.CFrame = CFrame.new(0, -100, 0)
+					else
+						local chosen = 1
+						if limb.Name == "Left Leg" then
+							chosen = 2
+						elseif limb.Name == "Right Arm" then
+							chosen = 3
+						elseif limb.Name == "Left Arm" then
+							chosen = 4
+						end
+						
+						if followParts[chosen] then
+							local vel = Vector3.new()
+							if followParts[chosen].Parent then
+								if followParts[chosen].Parent:FindFirstChild("Humanoid") then
+									if sepOppScriptPro.damper > 0 and followParts[1].Parent.Humanoid.Health > 0 then
+										if followParts[chosen].Parent.Humanoid.MoveDirection.Unit.Magnitude < 10 then
+											vel = followParts[chosen].Parent.Humanoid.MoveDirection.Unit * sepOppScriptPro.damper
+										end
+									end	
+								end
+							end
+							
+							local lp = followParts[chosen].Position + vel
+							limb.Velocity = Vector3.new(0, 1, 0) * 100000
+							limb.CFrame = CFrame.new(Vector3.new(lp.X, math.clamp(lp.Y, -250, 100000), lp.Z))
+						else
+							local lp = (CFrame.new(followCFrame.Position) * CFrame.new(limbPositions[limb.Name])).Position
+							limb.Velocity = Vector3.new(0, 1, 0) * 100000
+							limb.CFrame = CFrame.new(Vector3.new(lp.X, math.clamp(lp.Y, -250, 100000), lp.Z))
+						end
+					end
+				end
+			end
+
+			sepOppScriptPro.damper = sepOppScriptPro.damper + 0.5
+
+			if sepOppScriptPro.damper > 8 then
+				sepOppScriptPro.damper = 0
+			end
+		end
+
+		sepOppScriptPro.services.runService.Heartbeat:Wait()
+	end
+
+	for i = 1, 4 do
+		if followParts[i] then
+			if followParts[i].Parent then
+				if followParts[i].Parent:FindFirstChildOfClass("Highlight") then
+					followParts[i].Parent:FindFirstChildOfClass("Highlight"):Destroy()
+				end
+			end
+		end
+
+		followParts[i] = nil
+	end
+end)
+
+warn("sepWare Loaded!")
